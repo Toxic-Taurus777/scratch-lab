@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scratch Lab HQ | Admin Login</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #100d1a;
+  color: white;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+.panel {
+  width: 100%;
+  max-width: 430px;
+  padding: 30px;
+  border: 2px solid #ed00a4;
+  border-radius: 22px;
+  background: #241a32;
+  box-shadow: 0 0 35px #ed00a433;
+}
+h1 {
+  text-align: center;
+  color: #caff00;
+  margin-bottom: 5px;
+}
+.subtitle {
+  text-align: center;
+  color: #f8a6e1;
+  margin-bottom: 28px;
+}
+label {
+  display: block;
+  margin: 15px 0 7px;
+  font-weight: bold;
+}
+input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #796587;
+  border-radius: 9px;
+  background: #130f1d;
+  color: white;
+  font-size: 16px;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #caff00;
+  color: #171021;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:disabled { opacity: .6; }
+#message {
+  margin-top: 18px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<main class="panel">
+  <h1>🎟️ SCRATCH LAB HQ</h1>
+  <p class="subtitle">PRIVATE ADMIN CONTROL CENTER</p>
+
+  <form id="loginForm">
+    <label for="email">Admin Email</label>
+    <input id="email" type="email" required
+           autocomplete="username">
+
+    <label for="password">Password</label>
+    <input id="password" type="password" required
+           autocomplete="current-password">
+
+    <button id="loginButton" type="submit">
+      🔐 ENTER SCRATCH LAB HQ
+    </button>
+  </form>
+
+  <section id="dashboard" class="hidden">
+    <h2>Welcome to Scratch Lab HQ!</h2>
+    <p>Administrator access verified.</p>
+    <p>Ticket management tools are coming next.</p>
+    <button id="logoutButton">Sign Out</button>
+  </section>
+
+  <p id="message" role="status" aria-live="polite"></p>
+</main>
+
+<script type="module">
+import { createClient } from
+  "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL =
+  "https://ngnttqsxnwghmenjyjwz.supabase.co";
+
+const SUPABASE_KEY =
+  "
+const SUPABASE_KEY = "sb_publishable_g0FrJWpfXBvChb_KEMec6w_KszrVvsi";
+";
+
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const loginForm = document.getElementById("loginForm");
+const dashboard = document.getElementById("dashboard");
+const message = document.getElementById("message");
+const loginButton = document.getElementById("loginButton");
+
+async function verifyAdmin(accessToken) {
+  const response = await fetch(
+    SUPABASE_URL + "/functions/v1/scratch-admin",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + accessToken,
+        "apikey": SUPABASE_KEY
+      },
+      body: JSON.stringify({})
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.error || "Administrator verification failed"
+    );
+  }
+
+  return result;
+}
+
+async function showSession(session) {
+  await verifyAdmin(session.access_token);
+  loginForm.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  message.textContent = "Administrator verified.";
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginButton.disabled = true;
+  message.textContent = "Checking administrator access...";
+
+  try {
+    const email = document.getElementById("email").value;
+    const password =
+      document.getElementById("password").value;
+
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) throw error;
+
+    await showSession(data.session);
+    document.getElementById("password").value = "";
+  } catch (error) {
+    await supabase.auth.signOut();
+    message.textContent = error.message;
+  } finally {
+    loginButton.disabled = false;
+  }
+});
+
+document.getElementById("logoutButton")
+  .addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    dashboard.classList.add("hidden");
+    loginForm.classList.remove("hidden");
+    message.textContent = "Signed out.";
+  });
+
+const { data: { session } } =
+  await supabase.auth.getSession();
+
+if (session) {
+  try {
+    await showSession(session);
+  } catch {
+    await supabase.auth.signOut();
+  }
+}
+</script>
+</body>
+</html>
